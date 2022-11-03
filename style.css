@@ -1,0 +1,37 @@
+* {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+:root {
+    font-size: 10px;
+}
+
+body {
+    display: flex;
+    flex-direction: row-reverse;
+    font-size: 1.6rem;
+}
+
+.menu {
+    flex: 1;
+    border-left: 1px solid black;
+    height: 100vh;
+}
+
+.menu li {
+    border-bottom: 1px solid black;
+    padding: 1rem;
+}
+
+.menu li:hover {
+    background-color: rgb(73, 95, 206);
+    color: #fff;
+}
+
+.canvas-wrapper {
+    flex: 4;
+    height: 100vh;
+    overflow: hidden;
+}
