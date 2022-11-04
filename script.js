@@ -1,11 +1,13 @@
 const menu = document.querySelector('.menu');
-const li = document.querySelector('li')
+const addButton = document.querySelector('#add');
+const deleteButton = document.querySelector('#delete');
 
 const canvas = document.querySelector('canvas');
 const ctx = canvas.getContext('2d');
 
 let isDown = false;
 let isLineDrawingStarted = false;
+let isDeleteButtonClicked = false;
 let activeElem;
 let isElementActive = false;
 let deltaX;
@@ -56,11 +58,9 @@ class Elem {
         this.active = false;
     }
 
-    draw(x,y){
-        this.x = x;
-        this.y = y;
-        this.x1 = x + this.w;
-        this.y1 = y + this.h;
+    draw(){
+        this.x1 = this.x + this.w;
+        this.y1 = this.y + this.h;
         ctx.fillStyle = this.color;
         ctx.fillRect(this.x,this.y,this.w,this.h);
         ctx.beginPath();
@@ -107,10 +107,15 @@ const generateColor = () => {
     return finalHexString;
   }
 
-li.addEventListener('click', () => {
+addButton.addEventListener('click', () => {
     const elem = new Elem(generateColor());
     elem.draw(0,0);
     elems.push(elem);
+})
+
+deleteButton.addEventListener('click', () => {
+    document.body.style.cursor = 'pointer';
+    isDeleteButtonClicked = true;
 })
 
 canvas.addEventListener('mousedown', e => {
@@ -131,6 +136,25 @@ canvas.addEventListener('mousedown', e => {
             elem.active = true;
             isDown = true;
         }
+
+        if(elem.checkIfMouseInside(e.clientX,e.clientY) && isDeleteButtonClicked){
+            document.body.style.cursor = 'default';
+            isDeleteButtonClicked = false;
+            const index = elems.indexOf(elem);
+            elems.splice(index,1);
+            lines?.reduceRight( (acc, line, index, object) => {
+                if (elem === line.startElem) {
+                  object.splice(index, 1);
+                }
+              }, []);
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            elems?.forEach(elem => {
+                elem.draw();
+            })
+            lines?.forEach((line) => {
+                line.draw();
+            })
+        }
     })
 })
 
@@ -145,7 +169,7 @@ canvas.addEventListener("mousemove", e => {
             line.draw()
         })
         elems?.forEach( elem => {
-            elem.draw(elem.x,elem.y);
+            elem.draw();
         })
     }
 
@@ -153,10 +177,12 @@ canvas.addEventListener("mousemove", e => {
         ctx.clearRect(0,0,canvas.width,canvas.height);
         elems?.forEach((elem) => {
             if(elem.active){
-                elem.draw(e.clientX - deltaX,e.clientY - deltaY);
+                elem.x = e.clientX - deltaX;
+                elem.y = e.clientY - deltaY;
+                elem.draw();
                 console.log('Рисую')
             } else {
-                elem.draw(elem.x,elem.y);
+                elem.draw();
             }
             lines?.forEach(line => {
                 if(elem === line.startElem){
@@ -217,7 +243,7 @@ canvas.addEventListener('mouseup', (e) => {
     })
     isDown = false;
     isLineDrawingStarted = false;
-    elems[activeElem].active = false;
+    if(elems[activeElem]) elems[activeElem].active = false;
     lines.forEach(line => {
         line.active = false;
     })
