@@ -1,6 +1,7 @@
-const menu = document.querySelector('.menu');
 const addButton = document.querySelector('#add');
 const deleteButton = document.querySelector('#delete');
+const saveButton = document.querySelector('#save');
+const clearButton = document.querySelector('#clear');
 
 const canvas = document.querySelector('canvas');
 const ctx = canvas.getContext('2d');
@@ -19,16 +20,16 @@ const elems = [];
 const lines = [];
 
 class Line {
-    constructor(startX,startY,pos,elem){
+    constructor(startX,startY,endX,endY,startPos,startElemId,endPos,endElemId){
         this.startX = startX;
         this.startY = startY;
-        this.endX = startX;
-        this.endY = startY;
+        this.endX = endX;
+        this.endY = endY;
         this.active = false;
-        this.startPos = pos;
-        this.endPos = null;
-        this.startElem = elem;
-        this.endElem = null;
+        this.startPos = startPos;
+        this.endPos = endPos;
+        this.startElemId = startElemId;
+        this.endElemId = endElemId;
     }
 
     draw(){
@@ -47,9 +48,10 @@ class Line {
 }
 
 class Elem {
-    constructor(color){
-        this.x = 0;
-        this.y = 0;
+    constructor(x, y, id, color){
+        this.id = id;
+        this.x = x;
+        this.y = y;
         this.w = 100;
         this.h = 100;
         this.x1 = this.x + this.w;
@@ -105,45 +107,74 @@ const generateColor = () => {
       finalHexString += hexSet[Math.ceil(Math.random() * 15)];
     }
     return finalHexString;
-  }
+}
+
+const createElem = (x, y, id,color) => {
+    const elem = new Elem(x, y, id,color)
+    elem.draw();
+    elems.push(elem);
+}
+
+const createLine = (startX,startY,endX,endY,startPos,startElemId,endPos,endElemId) => {
+    const line = new Line(startX,startY,endX,endY,startPos,startElemId,endPos,endElemId);
+    line.draw();
+    lines.push(line);
+    return line;
+}
+
+const init = () => {
+    if(localStorage.elems){
+        JSON.parse(localStorage.getItem('elems')).forEach( obj => {
+            createElem(obj.x,obj.y,obj.id,obj.color);
+        })
+        JSON.parse(localStorage.getItem('lines')).forEach( obj => {
+            createLine(obj.startX,obj.startY,obj.endX,obj.endY,obj.startPos,obj.startElemId,obj.endPos,obj.endElemId);
+        })
+    }
+}
 
 addButton.addEventListener('click', () => {
-    const elem = new Elem(generateColor());
-    elem.draw(0,0);
-    elems.push(elem);
+    createElem(0,0,elems.length,generateColor());
 })
 
-deleteButton.addEventListener('click', () => {
-    document.body.style.cursor = 'pointer';
-    isDeleteButtonClicked = true;
+deleteButton.addEventListener('click', (e) => {
+    if(!isDeleteButtonClicked){
+        document.body.style.cursor = 'pointer';
+        isDeleteButtonClicked = true;
+        e.target.classList.add('active');
+    } else {
+        document.body.style.cursor = 'default';
+        isDeleteButtonClicked = false;
+        e.target.classList.remove('active');
+    }
+
+})
+
+saveButton.addEventListener('click', () => {
+    localStorage.setItem('elems', JSON.stringify(elems));
+    localStorage.setItem('lines', JSON.stringify(lines));
+})
+
+clearButton.addEventListener('click', () => {
+    localStorage.clear();
 })
 
 canvas.addEventListener('mousedown', e => {
     elems?.forEach((elem,i) => {
         if(elem.checkIfMouseInsideCircles(e.clientX,e.clientY)[0] && !isLineDrawingStarted){
             isLineDrawingStarted = true;
-            const line = new Line(e.clientX,e.clientY,elem.checkIfMouseInsideCircles(e.clientX,e.clientY)[1],elem);
-            line.active = true;
-            lines.push(line);
+            createLine(e.clientX,e.clientY,e.clientX,e.clientY,elem.checkIfMouseInsideCircles(e.clientX,e.clientY)[1],elem.id,null,null).active = true;
             return;
-        }
-
-        if(elem.checkIfMouseInside(e.clientX,e.clientY) && !isElementActive){
-            isElementActive = true;
-            activeElem = i;
-            deltaX = e.clientX - elem.x;
-            deltaY = e.clientY - elem.y;
-            elem.active = true;
-            isDown = true;
         }
 
         if(elem.checkIfMouseInside(e.clientX,e.clientY) && isDeleteButtonClicked){
             document.body.style.cursor = 'default';
             isDeleteButtonClicked = false;
+            deleteButton.classList.remove('active');
             const index = elems.indexOf(elem);
             elems.splice(index,1);
             lines?.reduceRight( (acc, line, index, object) => {
-                if (elem === line.startElem) {
+                if (elem.id === line.startElemId) {
                   object.splice(index, 1);
                 }
               }, []);
@@ -154,7 +185,19 @@ canvas.addEventListener('mousedown', e => {
             lines?.forEach((line) => {
                 line.draw();
             })
+            return
         }
+
+        if(elem.checkIfMouseInside(e.clientX,e.clientY) && !isElementActive){
+            isElementActive = true;
+            activeElem = i;
+            deltaX = e.clientX - elem.x;
+            deltaY = e.clientY - elem.y;
+            elem.active = true;
+            isDown = true;
+            return;
+        }
+
     })
 })
 
@@ -180,12 +223,11 @@ canvas.addEventListener("mousemove", e => {
                 elem.x = e.clientX - deltaX;
                 elem.y = e.clientY - deltaY;
                 elem.draw();
-                console.log('Рисую')
             } else {
                 elem.draw();
             }
             lines?.forEach(line => {
-                if(elem === line.startElem){
+                if(elem.id === line.startElemId){
                     switch (line.startPos) {
                         case 1: 
                                 line.startX = elem.x;
@@ -204,7 +246,7 @@ canvas.addEventListener("mousemove", e => {
                                 line.startY = elem.y1;
                                 break;
                     }
-                } else if (elem === line.endElem){
+                } else if (elem.id === line.endElemId){
                     switch (line.endPos) {
                         case 1: 
                                 line.endX = elem.x;
@@ -235,7 +277,7 @@ canvas.addEventListener('mouseup', (e) => {
         if(elem.checkIfMouseInsideCircles(e.clientX,e.clientY)[0] && isLineDrawingStarted){
             lines.forEach(line => {
                 if(line.active){
-                    line.endElem = elem;
+                    line.endElemId = elem.id;
                     line.endPos = elem.checkIfMouseInsideCircles(e.clientX,e.clientY)[1];
                 }
             })
@@ -250,3 +292,4 @@ canvas.addEventListener('mouseup', (e) => {
     isElementActive = false;
 })
 
+init();
